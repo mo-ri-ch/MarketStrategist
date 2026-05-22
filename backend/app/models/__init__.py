@@ -6,4 +6,5 @@ from app.models.events import CompetitorEvent
 from app.models.alerts import Alert
 from app.models.insights import Insight
 from app.models.recommendations import Recommendation
+from app.models.memory import Memory
 
