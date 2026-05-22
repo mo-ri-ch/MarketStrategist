@@ -30,6 +30,13 @@ export default function DashboardPage() {
   const [triggerLoading, setTriggerLoading] = useState(false)
   const [error, setError] = useState('')
 
+  // Settings & Reports states
+  const [company, setCompany] = useState<any>(null)
+  const [webhookUrl, setWebhookUrl] = useState('')
+  const [notificationEmail, setNotificationEmail] = useState('')
+  const [settingsSaving, setSettingsSaving] = useState(false)
+  const [reportDownloading, setReportDownloading] = useState(false)
+
   useEffect(() => {
     fetchDashboardData()
   }, [])
@@ -56,10 +63,97 @@ export default function DashboardPage() {
       if (!eventsRes.ok) throw new Error('Failed to load activity feed.')
       const eventsData = await eventsRes.json()
       setEvents(eventsData)
+
+      // 3. Fetch Company Details
+      const companyRes = await fetch('http://localhost:8000/api/v1/company/my-company', {
+        headers: { 'Authorization': `Bearer ${token}` },
+      })
+      if (companyRes.ok) {
+        const companyData = await companyRes.json()
+        setCompany(companyData)
+        setWebhookUrl(companyData.webhook_url || '')
+        setNotificationEmail(companyData.notification_email || '')
+      }
     } catch (err: any) {
       setError(err.message || 'Error occurred while loading console data.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleSaveSettings = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSettingsSaving(true)
+    setError('')
+    const token = localStorage.getItem('token')
+    if (!token) return
+
+    try {
+      const response = await fetch('http://localhost:8000/api/v1/company/my-company', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          webhook_url: webhookUrl || null,
+          notification_email: notificationEmail || null
+        })
+      })
+
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.detail || 'Failed to update settings.')
+      }
+
+      setCompany(data)
+      alert('Notification channels updated successfully!')
+    } catch (err: any) {
+      setError(err.message || 'Error updating settings.')
+    } finally {
+      setSettingsSaving(false)
+    }
+  }
+
+  const handleExportReport = async () => {
+    setReportDownloading(true)
+    setError('')
+    const token = localStorage.getItem('token')
+    if (!token) return
+
+    try {
+      const response = await fetch('http://localhost:8000/api/v1/reports/weekly/trigger', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+      })
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}))
+        throw new Error(data.detail || 'Failed to generate weekly digest.')
+      }
+
+      const blob = await response.blob()
+      const contentDisposition = response.headers.get('content-disposition')
+      let filename = 'weekly-intelligence-digest.pdf'
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/)
+        if (filenameMatch && filenameMatch[1]) {
+          filename = filenameMatch[1]
+        }
+      }
+
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (err: any) {
+      setError(err.message || 'Error exporting weekly digest.')
+    } finally {
+      setReportDownloading(false)
     }
   }
 
@@ -102,6 +196,13 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-8">
+      {error && (
+        <div className="bg-red-500/10 border border-red-500/20 text-red-200 text-xs px-4 py-3 rounded-xl flex items-center gap-2">
+          <span>⚠️</span>
+          <span>{error}</span>
+        </div>
+      )}
+
       {/* Overview Stat Widgets */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* Metric 1 */}
@@ -205,6 +306,90 @@ export default function DashboardPage() {
                   Weighted score calculated from active events, updates volume, and severe pricing moves.
                 </p>
               </div>
+            </div>
+          </div>
+
+          {/* Settings & Integrations */}
+          <div className="glass-card p-6 rounded-2xl border border-white/5 flex flex-col gap-6">
+            <div>
+              <h3 className="font-bold text-white text-base">Settings & Integrations</h3>
+              <p className="text-xs text-gray-400 leading-relaxed mt-1">
+                Configure automated outbound alerting channels and export executive summaries.
+              </p>
+            </div>
+
+            <form onSubmit={handleSaveSettings} className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-gray-300">Notification Email</label>
+                <input
+                  type="email"
+                  value={notificationEmail}
+                  onChange={(e) => setNotificationEmail(e.target.value)}
+                  placeholder="alerts@company.com"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-brand-500/50 transition-colors"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-gray-300">Webhook URL</label>
+                <input
+                  type="url"
+                  value={webhookUrl}
+                  onChange={(e) => setWebhookUrl(e.target.value)}
+                  placeholder="https://api.yourdomain.com/webhook"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-brand-500/50 transition-colors"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={settingsSaving}
+                className="premium-btn py-2.5 rounded-xl font-semibold text-white text-xs flex items-center justify-center gap-2 hover:shadow-brand-500/25 transition-all disabled:opacity-50"
+              >
+                {settingsSaving ? (
+                  <>
+                    <svg className="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    <span>Saving...</span>
+                  </>
+                ) : (
+                  <span>Update Notification Channels</span>
+                )}
+              </button>
+            </form>
+
+            <hr className="border-white/5" />
+
+            <div className="flex flex-col gap-3">
+              <div>
+                <h4 className="text-xs font-bold text-white">Weekly Executive Digest</h4>
+                <p className="text-[10px] text-gray-400 mt-0.5">
+                  Compile and export the latest competitor intelligence, anomaly tracks, and predictions.
+                </p>
+              </div>
+
+              <button
+                onClick={handleExportReport}
+                disabled={reportDownloading}
+                className="w-full py-2.5 rounded-xl border border-brand-500/20 hover:border-brand-500/40 bg-brand-500/5 text-brand-400 hover:text-brand-300 font-semibold text-xs flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+              >
+                {reportDownloading ? (
+                  <>
+                    <svg className="animate-spin h-3.5 w-3.5 text-brand-400" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    <span>Generating Digest...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>📄</span>
+                    <span>Export Weekly Digest</span>
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>

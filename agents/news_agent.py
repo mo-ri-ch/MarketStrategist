@@ -87,6 +87,7 @@ def save_news_insights(state: AgentState) -> Dict[str, Any]:
         return {}
         
     db = SessionLocal()
+    saved_event_ids = []
     try:
         for ins in insights:
             # 1. Save to Insight table
@@ -103,37 +104,39 @@ def save_news_insights(state: AgentState) -> Dict[str, Any]:
             db.flush()
             
             # 2. If the category is critical (funding, acquisition, partnership, product_launch),
-            # write it to CompetitorEvent and trigger alerts
+            # write it to CompetitorEvent and trigger alerts via Alert Agent
             category = ins["data_points"].get("category", "general")
             if category in ["funding", "acquisition", "partnership", "product_launch"]:
-                severity = "high" if category in ["funding", "acquisition"] else "medium"
-                
                 db_event = CompetitorEvent(
                     competitor_id=comp_id,
                     event_type="news",
                     title=f"Strategic Event: {ins['title']}",
                     description=ins["description"],
                     confidence_score=0.95,
-                    severity=severity
+                    severity="low"  # Default to low, let Alert Agent classify it
                 )
                 db.add(db_event)
                 db.flush()
-                
-                # Auto-generate corresponding Alert
-                db_alert = Alert(
-                    competitor_id=comp_id,
-                    event_id=db_event.id,
-                    is_read=False
-                )
-                db.add(db_alert)
+                saved_event_ids.append(db_event.id)
                 
         db.commit()
-        logger.info(f"Saved {len(insights)} news insights & associated events/alerts to DB for competitor {comp_id}")
+        logger.info(f"Saved {len(insights)} news insights & associated events to DB for competitor {comp_id}")
     except Exception as e:
         db.rollback()
         logger.error(f"Error saving news insights to DB: {e}")
+        saved_event_ids = []
     finally:
         db.close()
+        
+    # Trigger Alert Agent for each saved event
+    sys.path.append(os.path.abspath(os.path.dirname(__file__)))
+    from alert_agent import run_alert_agent
+    for ev_id in saved_event_ids:
+        try:
+            logger.info(f"Triggering Alert Agent workflow for news event {ev_id}")
+            run_alert_agent(ev_id)
+        except Exception as ae:
+            logger.error(f"Failed to run Alert Agent on news event {ev_id}: {ae}")
         
     return {}
 

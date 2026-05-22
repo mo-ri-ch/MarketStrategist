@@ -8,6 +8,8 @@ class CompanyBase(BaseModel):
     services: Optional[str] = None
     region: Optional[str] = None
     goals: Optional[str] = None
+    webhook_url: Optional[str] = None
+    notification_email: Optional[str] = None
 
 class CompanyCreate(CompanyBase):
     pass
@@ -19,6 +21,8 @@ class CompanyUpdate(BaseModel):
     services: Optional[str] = None
     region: Optional[str] = None
     goals: Optional[str] = None
+    webhook_url: Optional[str] = None
+    notification_email: Optional[str] = None
 
 class CompanyOut(CompanyBase):
     id: int

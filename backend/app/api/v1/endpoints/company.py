@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.models.user import User
 from app.models.company import Company
-from app.schemas.company import CompanyCreate, CompanyOut
+from app.schemas.company import CompanyCreate, CompanyOut, CompanyUpdate
 from app.api.deps import get_current_active_user
 from app.services.llm import generate_company_summary
 
@@ -67,6 +67,30 @@ def get_my_company(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No company profile found for this user. Please complete onboarding."
         )
+    return company
+
+@router.patch("/my-company", response_model=CompanyOut)
+def update_my_company(
+    company_in: CompanyUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Update the active user's company profile.
+    """
+    company = db.query(Company).filter(Company.user_id == current_user.id).first()
+    if not company:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No company profile found for this user. Please complete onboarding."
+        )
+    
+    update_data = company_in.model_dump(exclude_unset=True) if hasattr(company_in, 'model_dump') else company_in.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(company, field, value)
+    
+    db.commit()
+    db.refresh(company)
     return company
 
 @router.get("/", response_model=List[CompanyOut])

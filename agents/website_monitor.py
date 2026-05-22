@@ -180,6 +180,7 @@ def save_events(state: AgentState) -> Dict[str, Any]:
         return {}
         
     db = SessionLocal()
+    saved_event_ids = []
     try:
         for event in events:
             db_event = CompetitorEvent(
@@ -189,27 +190,30 @@ def save_events(state: AgentState) -> Dict[str, Any]:
                 description=event.get("description", "A change was discovered on the target's website."),
                 original_text_diff=event.get("original_text_diff"),
                 confidence_score=event.get("confidence_score", 1.0),
-                severity=event.get("severity", "low")
+                severity="low"  # Default to low, let Alert Agent evaluate
             )
             db.add(db_event)
             db.flush()
-
-            # Create an alert for medium/high severity events or pricing/product events
-            if db_event.severity in ["medium", "high"] or db_event.event_type in ["pricing", "product"]:
-                db_alert = Alert(
-                    competitor_id=comp_id,
-                    event_id=db_event.id,
-                    is_read=False
-                )
-                db.add(db_alert)
+            saved_event_ids.append(db_event.id)
 
         db.commit()
-        logger.info(f"Saved {len(events)} events and associated alerts to database for competitor {comp_id}")
+        logger.info(f"Saved {len(events)} events to database for competitor {comp_id}")
     except Exception as e:
         db.rollback()
-        logger.error(f"Error saving events and alerts to DB: {e}")
+        logger.error(f"Error saving events to DB: {e}")
+        saved_event_ids = []
     finally:
         db.close()
+        
+    # Trigger Alert Agent for each saved event
+    sys.path.append(os.path.abspath(os.path.dirname(__file__)))
+    from alert_agent import run_alert_agent
+    for ev_id in saved_event_ids:
+        try:
+            logger.info(f"Triggering Alert Agent workflow for event {ev_id}")
+            run_alert_agent(ev_id)
+        except Exception as ae:
+            logger.error(f"Failed to run Alert Agent on event {ev_id}: {ae}")
         
     return {}
 

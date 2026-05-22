@@ -15,6 +15,8 @@ class Company(Base, TimestampMixin):
     ai_summary = Column(Text, nullable=True)  # AI-generated company overview
 
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    webhook_url = Column(String, nullable=True)
+    notification_email = Column(String, nullable=True)
 
     # Relationships
     owner = relationship("User", back_populates="companies")

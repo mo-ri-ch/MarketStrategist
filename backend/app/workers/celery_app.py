@@ -8,6 +8,8 @@ celery_app = Celery(
     include=[
         "app.workers.tasks.scraper",
         "app.workers.tasks.indexer",
+        "app.services.notifications",
+        "app.workers.tasks.report_generator",
     ]
 )
 

@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import auth, company, competitors, insights, recommendations, alerts, chat, dashboard
+from app.api.v1.endpoints import auth, company, competitors, insights, recommendations, alerts, chat, dashboard, predictor, reports
 
 api_router = APIRouter()
 
@@ -11,3 +11,5 @@ api_router.include_router(recommendations.router, prefix="/recommendations", tag
 api_router.include_router(alerts.router, prefix="/alerts", tags=["alerts"])
 api_router.include_router(chat.router, prefix="/chat", tags=["chat"])
 api_router.include_router(dashboard.router, prefix="/dashboard", tags=["dashboard"])
+api_router.include_router(predictor.router, prefix="/predictor", tags=["predictor"])
+api_router.include_router(reports.router, prefix="/reports", tags=["reports"])

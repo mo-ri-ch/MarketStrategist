@@ -239,6 +239,8 @@ export default function CompetitorsPage() {
                 </div>
               </div>
 
+              <CompetitorPredictionPanel competitorId={comp.id} />
+
               {/* Connected channels summary */}
               <div className="border-t border-white/5 pt-4 flex items-center justify-between">
                 <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Scraping Channels:</span>
@@ -386,6 +388,160 @@ export default function CompetitorsPage() {
               </div>
             </form>
           </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+interface Prediction {
+  predicted_action: string
+  description: string
+  confidence_score: number
+  trigger_events?: Array<{
+    id: number
+    title: string
+    event_type: string
+  }>
+  updated_at: string
+}
+
+function CompetitorPredictionPanel({ competitorId }: { competitorId: number }) {
+  const [prediction, setPrediction] = useState<Prediction | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [isOpen, setIsOpen] = useState(false)
+
+  const fetchPrediction = async () => {
+    setLoading(true)
+    setError('')
+    const token = localStorage.getItem('token')
+    try {
+      const response = await fetch(`http://localhost:8000/api/v1/predictor/${competitorId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      })
+      if (!response.ok) {
+        throw new Error('Failed to load predictions.')
+      }
+      const data = await response.json()
+      setPrediction(data)
+    } catch (err: any) {
+      setError(err.message || 'Error loading prediction.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleRefresh = async () => {
+    setLoading(true)
+    setError('')
+    const token = localStorage.getItem('token')
+    try {
+      const response = await fetch(`http://localhost:8000/api/v1/predictor/${competitorId}/refresh`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      })
+      if (!response.ok) {
+        throw new Error('Failed to refresh prediction.')
+      }
+      const data = await response.json()
+      setPrediction(data)
+    } catch (err: any) {
+      setError(err.message || 'Error refreshing prediction.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (isOpen && !prediction) {
+      fetchPrediction()
+    }
+  }, [isOpen])
+
+  return (
+    <div className="mt-2 border-t border-white/5 pt-3">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center justify-between w-full text-left text-xs font-semibold text-brand-400 hover:text-brand-300 transition-colors"
+      >
+        <span className="flex items-center gap-1.5">
+          🔮 Predictive Intelligence
+        </span>
+        <span>{isOpen ? '▲ Hide' : '▼ Expand'}</span>
+      </button>
+
+      {isOpen && (
+        <div className="mt-2.5 p-3.5 rounded-xl bg-white/3 border border-white/5 flex flex-col gap-2.5 text-xs text-gray-300">
+          {loading && !prediction ? (
+            <div className="flex items-center gap-2 text-gray-400 py-1.5">
+              <div className="w-3.5 h-3.5 border-2 border-t-brand-400 border-brand-400/20 rounded-full animate-spin" />
+              <span>Analyzing competitor actions...</span>
+            </div>
+          ) : error ? (
+            <p className="text-red-400">{error}</p>
+          ) : prediction ? (
+            <>
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] text-gray-500 uppercase tracking-wider block">Forecasted Next Move</span>
+                  <span className="text-white font-bold text-sm">{prediction.predicted_action}</span>
+                </div>
+                <div className="text-right">
+                  <span className="text-[10px] text-gray-500 uppercase tracking-wider block">Confidence</span>
+                  <span className="text-brand-400 font-bold text-sm">{(prediction.confidence_score * 100).toFixed(0)}%</span>
+                </div>
+              </div>
+
+              <div className="w-full bg-white/10 h-1.5 rounded-full overflow-hidden">
+                <div
+                  className="bg-brand-500 h-full rounded-full transition-all duration-500"
+                  style={{ width: `${prediction.confidence_score * 100}%` }}
+                />
+              </div>
+
+              <div>
+                <span className="text-[10px] text-gray-500 uppercase tracking-wider block mb-0.5">Rationale</span>
+                <p className="text-gray-300 leading-relaxed text-[11px]">{prediction.description}</p>
+              </div>
+
+              {prediction.trigger_events && prediction.trigger_events.length > 0 && (
+                <div>
+                  <span className="text-[10px] text-gray-500 uppercase tracking-wider block mb-1">Causal Events</span>
+                  <div className="flex flex-col gap-1.5">
+                    {prediction.trigger_events.map((evt) => (
+                      <div key={evt.id} className="p-2 rounded bg-white/5 border border-white/5 flex items-start gap-1.5">
+                        <span className="text-brand-400 mt-0.5">▪</span>
+                        <div>
+                          <p className="text-white font-semibold text-[10.5px] leading-tight">{evt.title}</p>
+                          <p className="text-[9px] text-gray-500 uppercase">{evt.event_type}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-between items-center border-t border-white/5 pt-2 mt-1">
+                <span className="text-[9px] text-gray-500">
+                  Updated: {new Date(prediction.updated_at).toLocaleDateString()}
+                </span>
+                <button
+                  onClick={handleRefresh}
+                  disabled={loading}
+                  className="px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-white font-semibold text-[9px] transition-all flex items-center gap-1"
+                >
+                  {loading ? 'Refreshing...' : '🔄 Recalculate'}
+                </button>
+              </div>
+            </>
+          ) : (
+            <p className="text-gray-400 italic">No predictions generated yet.</p>
+          )}
         </div>
       )}
     </div>
