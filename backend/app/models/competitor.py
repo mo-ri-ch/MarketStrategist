@@ -24,3 +24,4 @@ class Competitor(Base, TimestampMixin):
 
     # Relationships
     company = relationship("Company", back_populates="competitors")
+    events = relationship("CompetitorEvent", back_populates="competitor", cascade="all, delete-orphan")

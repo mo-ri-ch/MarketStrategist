@@ -6,8 +6,8 @@ This document contains the complete, atomic-level, phased implementation plan fo
 
 ## 📊 Phase Progress Summary
 - [x] **Phase 0: Setup & Core Infrastructure** (100%)
-- [ ] **Phase 1: MVP - Core Platform & Website Monitoring** (0%)
-- [ ] **Phase 2: Social Media, News Monitoring & Recommendation Engine** (0%)
+- [x] **Phase 1: MVP - Core Platform & Website Monitoring** (100%)
+- [x] **Phase 2: Social Media, News Monitoring & Recommendation Engine** (100%)
 - [ ] **Phase 3: AI Memory, RAG & CEO Conversational Assistant** (0%)
 - [ ] **Phase 4: Autonomous Workflows, Notifications & Predictive Analytics** (0%)
 - [ ] **Phase 5: Multi-Region Scaling, RBAC & Enterprise Security** (0%)
@@ -49,62 +49,62 @@ This document contains the complete, atomic-level, phased implementation plan fo
 *Goal: Build the base tenant signup/login, company onboarding, manual competitor creation, and automated website scraper agent with dashboard UI modules.*
 
 ### Tasks
-- [ ] **TSK-101: JWT Authentication & User Management API**
+- [x] **TSK-101: JWT Authentication & User Management API**
   - **Description**: Implement user registration, secure login with bcrypt hashing, JWT issuance, and current-user authentication middleware.
   - **Components**: `backend/app/api/v1/auth.py`, `backend/app/core/security.py`.
   - **Dependencies**: `TSK-004`.
 
-- [ ] **TSK-102: Authentication Frontend Pages**
+- [x] **TSK-102: Authentication Frontend Pages**
   - **Description**: Develop responsive, beautiful signup and login forms in Next.js using clean CSS layouts and visual micro-animations.
   - **Components**: `frontend/src/app/login/page.tsx`, `frontend/src/app/signup/page.tsx`.
   - **Dependencies**: `TSK-005`.
 
-- [ ] **TSK-103: Company Onboarding API**
+- [x] **TSK-103: Company Onboarding API**
   - **Description**: Create `POST /company` to save company profile (name, website, industry, services, region, goals) and generate an AI summary stub using an LLM model provider.
   - **Components**: `backend/app/api/v1/company.py`, `backend/app/services/llm.py`.
   - **Dependencies**: `TSK-101`.
 
-- [ ] **TSK-104: Company Onboarding Frontend Wizard**
+- [x] **TSK-104: Company Onboarding Frontend Wizard**
   - **Description**: Create a multi-step user interface onboarding wizard to guide users through entering company data and configuring goals.
   - **Components**: `frontend/src/app/onboarding/page.tsx`, `frontend/src/components/OnboardingStep.tsx`.
   - **Dependencies**: `TSK-102`, `TSK-103`.
 
-- [ ] **TSK-105: Competitor Management API**
+- [x] **TSK-105: Competitor Management API**
   - **Description**: Expose CRUD endpoints `POST /competitor` and `GET /competitors` to manually link competitors with their names, websites, and social handles.
   - **Components**: `backend/app/api/v1/competitors.py`.
   - **Dependencies**: `TSK-103`.
 
-- [ ] **TSK-106: Competitor Addition Frontend UI**
+- [x] **TSK-106: Competitor Addition Frontend UI**
   - **Description**: Build a competitor management dashboard view enabling manual entry of competitor URLs and displays list of active tracked companies.
   - **Components**: `frontend/src/app/dashboard/competitors/page.tsx`.
   - **Dependencies**: `TSK-104`, `TSK-105`.
 
-- [ ] **TSK-107: Celery & Playwright Scraping Infrastructure**
+- [x] **TSK-107: Celery & Playwright Scraping Infrastructure**
   - **Description**: Setup a Celery worker pool connected to Redis for async tasks. Integrate Playwright for scraping text off target competitor websites.
   - **Components**: `backend/app/workers/celery_app.py`, `backend/app/workers/tasks/scraper.py`.
   - **Dependencies**: `TSK-002`, `TSK-103`.
 
-- [ ] **TSK-108: Website Monitoring Agent (Agent 1)**
+- [x] **TSK-108: Website Monitoring Agent (Agent 1)**
   - **Description**: Build the Agent 1 flow using LangGraph. Compare scraped site text changes between executions, summarize changes (e.g. pricing, new products, hiring), and record events to the `CompetitorEvents` table.
   - **Components**: `agents/website_monitor.py`, `backend/app/models/events.py`.
   - **Dependencies**: `TSK-107`.
 
-- [ ] **TSK-109: Competitor Dashboard API & Aggregations**
+- [x] **TSK-109: Competitor Dashboard API & Aggregations**
   - **Description**: Compute metrics (competitor score, activity score, growth score) aggregating recent `CompetitorEvents` data.
-  - **Components**: `backend/app/api/v1/dashboard.py`.
+  - **Components**: `backend/app/api/v1/endpoints/dashboard.py`.
   - **Dependencies**: `TSK-108`.
 
-- [ ] **TSK-110: Competitor Dashboard UI Module**
+- [x] **TSK-110: Competitor Dashboard UI Module**
   - **Description**: Design and build the Competitor Dashboard UI showing active charts of scores, activity feed, and highlighted updates.
   - **Components**: `frontend/src/app/dashboard/page.tsx`, `frontend/src/components/ActivityFeed.tsx`.
   - **Dependencies**: `TSK-106`, `TSK-109`.
 
-- [ ] **TSK-111: Core Alerts Backend API**
+- [x] **TSK-111: Core Alerts Backend API**
   - **Description**: Implement basic alert creation and fetching endpoints (`GET /alerts`) driven by major changes discovered in website monitoring.
   - **Components**: `backend/app/api/v1/alerts.py`, `backend/app/models/alerts.py`.
   - **Dependencies**: `TSK-108`.
 
-- [ ] **TSK-112: Alerts Dashboard UI Module**
+- [x] **TSK-112: Alerts Dashboard UI Module**
   - **Description**: Render standard notifications layout indicating urgent alerts (e.g. competitor pricing drops or service removals).
   - **Components**: `frontend/src/app/dashboard/alerts/page.tsx`.
   - **Dependencies**: `TSK-110`, `TSK-111`.
@@ -115,42 +115,42 @@ This document contains the complete, atomic-level, phased implementation plan fo
 *Goal: Integrate broad-spectrum monitoring (Social networks + News channels), deploy automatic competitor discovery, and introduce the strategic recommendation system.*
 
 ### Tasks
-- [ ] **TSK-201: Schema Expansion for Social, News & Recommendations**
+- [x] **TSK-201: Schema Expansion for Social, News & Recommendations**
   - **Description**: Extend database schemas to create `Insights`, `Recommendations`, and tracking schemas for historical social performance.
   - **Components**: `backend/app/models/insights.py`, `backend/app/models/recommendations.py`.
   - **Dependencies**: `TSK-108`.
 
-- [ ] **TSK-202: Social Intelligence Agent (Agent 2)**
+- [x] **TSK-202: Social Intelligence Agent (Agent 2)**
   - **Description**: Create monitoring agent using LangGraph to scrape/mock APIs for YouTube, Instagram, LinkedIn, Reddit, X/Twitter, Medium, and Threads. Extract post content, engagement counts, sentiment scores, and hashtags.
   - **Components**: `agents/social_intelligence.py`, `backend/app/services/social_scraper.py`.
   - **Dependencies**: `TSK-201`.
 
-- [ ] **TSK-203: News Agent (Agent 3)**
+- [x] **TSK-203: News Agent (Agent 3)**
   - **Description**: Integrate RSS feeds and news API aggregator to track news updates matching competitor terms. Analyze articles for events (funding, acquisitions, strategic partnerships).
   - **Components**: `agents/news_agent.py`, `backend/app/services/news_fetcher.py`.
   - **Dependencies**: `TSK-201`.
 
-- [ ] **TSK-204: Market Research Agent (Agent 4) - Automatic Discovery**
+- [x] **TSK-204: Market Research Agent (Agent 4) - Automatic Discovery**
   - **Description**: Develop autonomous discovery pipeline using web searches, keyword indices, and business directories to discover unmanaged competitors.
   - **Components**: `agents/market_research.py`, `backend/app/services/search_trends.py`.
   - **Dependencies**: `TSK-203`.
 
-- [ ] **TSK-205: Recommendation Agent (Agent 5)**
+- [x] **TSK-205: Recommendation Agent (Agent 5)**
   - **Description**: Build agent logic that aggregates recent website, news, and social events, passes them to a reasoning LLM, and writes actionable CEO recommendations.
   - **Components**: `agents/recommendation.py`.
   - **Dependencies**: `TSK-202`, `TSK-203`.
 
-- [ ] **TSK-206: Insights & Recommendations API**
+- [x] **TSK-206: Insights & Recommendations API**
   - **Description**: Expose GET `/insights` and GET `/recommendations` API endpoints serving filtered analytical trends and strategist advice.
   - **Components**: `backend/app/api/v1/insights.py`, `backend/app/api/v1/recommendations.py`.
   - **Dependencies**: `TSK-205`.
 
-- [ ] **TSK-207: Market Dashboard UI Module**
+- [x] **TSK-207: Market Dashboard UI Module**
   - **Description**: Build a dashboard displaying market trends, sentiment charts, competitor positioning matrices, and growth opportunities.
   - **Components**: `frontend/src/app/dashboard/market/page.tsx`.
   - **Dependencies**: `TSK-110`, `TSK-206`.
 
-- [ ] **TSK-208: Recommendation Panel UI Module**
+- [x] **TSK-208: Recommendation Panel UI Module**
   - **Description**: Design an administrative feed showing generated CEO advice cards (e.g. "Competitor expanded in region X, recommended strategy: Y").
   - **Components**: `frontend/src/app/dashboard/recommendations/page.tsx`.
   - **Dependencies**: `TSK-207`.
