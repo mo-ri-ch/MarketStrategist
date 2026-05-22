@@ -161,7 +161,7 @@ This document contains the complete, atomic-level, phased implementation plan fo
 *Goal: Integrate Vector database indexing for competitor activities, set up memory storage, and deploy the conversational CEO interface.*
 
 ### Tasks
-- [ ] **TSK-301: Qdrant Setup & Embeddings Integration**
+- [x] **TSK-301: Qdrant Setup & Embeddings Integration**
   - **Description**: Initialize collections in Qdrant Vector database and set up helper utilities using OpenAI/Claude embeddings API.
   - **Components**: `backend/app/db/qdrant.py`, `backend/app/services/embeddings.py`.
   - **Dependencies**: `TSK-002`.
