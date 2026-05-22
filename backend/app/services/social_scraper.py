@@ -79,12 +79,13 @@ def get_fallback_posts(competitor_name: str, platform: str) -> List[Dict[str, An
         }
     ]
 
-def scrape_social_metrics(competitor_name: str, platform: str) -> Dict[str, Any]:
+def scrape_social_metrics(competitor_name: str, platform: str, region: str = None) -> Dict[str, Any]:
     """
     Gather or simulate analytics and recent posts for a competitor's social media.
     If OPENAI_API_KEY is configured, generates realistic posts matching the competitor's profile.
     """
-    logger.info(f"Simulating social scrape for {competitor_name} on {platform}")
+    region_str = region or "Global"
+    logger.info(f"Simulating social scrape for {competitor_name} on {platform} (Region: {region_str})")
     
     # Calculate baseline metrics dynamically based on platform
     platform_hash = sum(ord(c) for c in competitor_name + platform)
@@ -122,6 +123,10 @@ def scrape_social_metrics(competitor_name: str, platform: str) -> Dict[str, Any]
         
         Strictly valid JSON starting with [ and ending with ]. No markdown wrappers.
         """
+        
+        from app.services.regional_filter import inject_regional_modifiers
+        prompt = inject_regional_modifiers(prompt, region_str)
+        
         try:
             response = client.chat.completions.create(
                 model="gpt-4-turbo",

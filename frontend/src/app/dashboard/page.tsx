@@ -29,6 +29,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [triggerLoading, setTriggerLoading] = useState(false)
   const [error, setError] = useState('')
+  const [userRole, setUserRole] = useState<string>('viewer')
 
   // Settings & Reports states
   const [company, setCompany] = useState<any>(null)
@@ -39,6 +40,17 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchDashboardData()
+    const storedUser = localStorage.getItem('user')
+    if (storedUser) {
+      try {
+        const u = JSON.parse(storedUser)
+        if (u && u.role) {
+          setUserRole(u.role)
+        }
+      } catch (e) {
+        console.error(e)
+      }
+    }
   }, [])
 
   const fetchDashboardData = async () => {
@@ -247,15 +259,23 @@ export default function DashboardPage() {
         {/* Left Side: Agent Controllers */}
         <div className="lg:col-span-1 flex flex-col gap-6">
           <div className="glass-card p-6 rounded-2xl border border-white/5 flex flex-col gap-4">
-            <h3 className="font-bold text-white text-base">Agent Controller</h3>
+            <div className="flex justify-between items-center">
+              <h3 className="font-bold text-white text-base">Agent Controller</h3>
+              {userRole !== 'admin' && (
+                <span className="text-[9px] px-2 py-0.5 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 font-semibold">
+                  Locked
+                </span>
+              )}
+            </div>
             <p className="text-xs text-gray-400 leading-relaxed">
               Launch the cooperative agent swarm. The scraping agent crawls targets, and the comparison agent registers pricing adjustments, product developments, and hiring changes.
             </p>
             
             <button
               onClick={handleTriggerCycle}
-              disabled={triggerLoading}
-              className="premium-btn w-full py-3.5 rounded-xl font-semibold text-white text-sm flex items-center justify-center gap-2 hover:shadow-brand-500/25 transition-all disabled:opacity-50"
+              disabled={triggerLoading || userRole !== 'admin'}
+              className="premium-btn w-full py-3.5 rounded-xl font-semibold text-white text-sm flex items-center justify-center gap-2 hover:shadow-brand-500/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              title={userRole !== 'admin' ? 'Insufficient permissions (Admin only)' : 'Trigger agent crawling cycle'}
             >
               {triggerLoading ? (
                 <>
@@ -312,7 +332,14 @@ export default function DashboardPage() {
           {/* Settings & Integrations */}
           <div className="glass-card p-6 rounded-2xl border border-white/5 flex flex-col gap-6">
             <div>
-              <h3 className="font-bold text-white text-base">Settings & Integrations</h3>
+              <div className="flex justify-between items-center">
+                <h3 className="font-bold text-white text-base">Settings & Integrations</h3>
+                {userRole !== 'admin' && (
+                  <span className="text-[9px] px-2 py-0.5 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 font-semibold">
+                    Locked
+                  </span>
+                )}
+              </div>
               <p className="text-xs text-gray-400 leading-relaxed mt-1">
                 Configure automated outbound alerting channels and export executive summaries.
               </p>
@@ -323,10 +350,11 @@ export default function DashboardPage() {
                 <label className="text-xs font-semibold text-gray-300">Notification Email</label>
                 <input
                   type="email"
+                  disabled={userRole !== 'admin'}
                   value={notificationEmail}
                   onChange={(e) => setNotificationEmail(e.target.value)}
                   placeholder="alerts@company.com"
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-brand-500/50 transition-colors"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-brand-500/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </div>
 
@@ -334,17 +362,19 @@ export default function DashboardPage() {
                 <label className="text-xs font-semibold text-gray-300">Webhook URL</label>
                 <input
                   type="url"
+                  disabled={userRole !== 'admin'}
                   value={webhookUrl}
                   onChange={(e) => setWebhookUrl(e.target.value)}
                   placeholder="https://api.yourdomain.com/webhook"
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-brand-500/50 transition-colors"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-brand-500/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </div>
 
               <button
                 type="submit"
-                disabled={settingsSaving}
-                className="premium-btn py-2.5 rounded-xl font-semibold text-white text-xs flex items-center justify-center gap-2 hover:shadow-brand-500/25 transition-all disabled:opacity-50"
+                disabled={settingsSaving || userRole !== 'admin'}
+                className="premium-btn py-2.5 rounded-xl font-semibold text-white text-xs flex items-center justify-center gap-2 hover:shadow-brand-500/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                title={userRole !== 'admin' ? 'Insufficient permissions (Admin only)' : 'Save changes'}
               >
                 {settingsSaving ? (
                   <>
@@ -372,8 +402,9 @@ export default function DashboardPage() {
 
               <button
                 onClick={handleExportReport}
-                disabled={reportDownloading}
-                className="w-full py-2.5 rounded-xl border border-brand-500/20 hover:border-brand-500/40 bg-brand-500/5 text-brand-400 hover:text-brand-300 font-semibold text-xs flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+                disabled={reportDownloading || (userRole !== 'admin' && userRole !== 'planner')}
+                className="w-full py-2.5 rounded-xl border border-brand-500/20 hover:border-brand-500/40 bg-brand-500/5 text-brand-400 hover:text-brand-300 font-semibold text-xs flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                title={(userRole !== 'admin' && userRole !== 'planner') ? 'Insufficient permissions (Admin/Planner only)' : 'Download digest PDF'}
               >
                 {reportDownloading ? (
                   <>

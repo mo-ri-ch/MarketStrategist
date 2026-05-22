@@ -19,6 +19,7 @@ class AgentState(TypedDict):
     company_name: str
     company_industry: str
     company_services: str
+    company_region: str
     discovered_competitors: List[Dict[str, Any]]
     insights_to_save: List[Dict[str, Any]]
 
@@ -30,11 +31,12 @@ def fetch_company_profile(state: AgentState) -> Dict[str, Any]:
     try:
         company = db.query(Company).filter(Company.id == company_id).first()
         if not company:
-            return {"company_name": "", "company_industry": "", "company_services": ""}
+            return {"company_name": "", "company_industry": "", "company_services": "", "company_region": "Global"}
         return {
             "company_name": company.name,
             "company_industry": company.industry or "Technology",
-            "company_services": company.services or ""
+            "company_services": company.services or "",
+            "company_region": company.region or "Global"
         }
     finally:
         db.close()
@@ -43,10 +45,11 @@ def run_discovery(state: AgentState) -> Dict[str, Any]:
     name = state["company_name"]
     industry = state["company_industry"]
     services = state["company_services"]
+    region = state.get("company_region", "Global")
     
-    logger.info(f"[Node: Run Discovery] Finding competitor matches for {name}")
+    logger.info(f"[Node: Run Discovery] Finding competitor matches for {name} in region {region}")
     try:
-        matches = discover_unmanaged_competitors(name, industry, services)
+        matches = discover_unmanaged_competitors(name, industry, services, region=region)
         return {"discovered_competitors": matches}
     except Exception as e:
         logger.error(f"Error in run_discovery node: {e}")

@@ -13,6 +13,7 @@ class CompetitorEvent(Base, TimestampMixin):
     original_text_diff = Column(Text, nullable=True)
     confidence_score = Column(Float, default=1.0, nullable=False)
     severity = Column(String, default="low", nullable=False)  # low, medium, high
+    region = Column(String, default="Global", nullable=False)
 
     # Relationships
     competitor = relationship("Competitor", back_populates="events")

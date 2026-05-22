@@ -1,17 +1,20 @@
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.models.user import User
 from app.models.company import Company
 from app.schemas.company import CompanyCreate, CompanyOut, CompanyUpdate
-from app.api.deps import get_current_active_user
+from app.api.deps import get_current_active_user, check_role
 from app.services.llm import generate_company_summary
+from app.core.audit import log_action
+from app.core.caching import invalidate_dashboard_cache
+from app.core.rate_limiter import RateLimiter
 
 router = APIRouter()
 
-@router.post("/", response_model=CompanyOut, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=CompanyOut, status_code=status.HTTP_201_CREATED, dependencies=[Depends(RateLimiter(limit=10, window=60, limit_by_ip=False))])
 def onboard_company(
     company_in: CompanyCreate,
     db: Session = Depends(get_db),
@@ -53,7 +56,7 @@ def onboard_company(
     db.refresh(db_company)
     return db_company
 
-@router.get("/my-company", response_model=CompanyOut)
+@router.get("/my-company", response_model=CompanyOut, dependencies=[Depends(RateLimiter(limit=100, window=60, limit_by_ip=True))])
 def get_my_company(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
@@ -69,11 +72,12 @@ def get_my_company(
         )
     return company
 
-@router.patch("/my-company", response_model=CompanyOut)
+@router.patch("/my-company", response_model=CompanyOut, dependencies=[Depends(RateLimiter(limit=10, window=60, limit_by_ip=False))])
 def update_my_company(
     company_in: CompanyUpdate,
+    request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(check_role(["admin"]))
 ):
     """
     Update the active user's company profile.
@@ -91,9 +95,20 @@ def update_my_company(
     
     db.commit()
     db.refresh(company)
+    
+    log_action(
+        db=db,
+        user_id=current_user.id,
+        action="update_settings",
+        details=update_data,
+        ip_address=request.client.host if request.client else None
+    )
+    
+    invalidate_dashboard_cache(company.id)
+    
     return company
 
-@router.get("/", response_model=List[CompanyOut])
+@router.get("/", response_model=List[CompanyOut], dependencies=[Depends(RateLimiter(limit=100, window=60, limit_by_ip=True))])
 def get_companies(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)

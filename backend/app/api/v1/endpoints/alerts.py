@@ -9,10 +9,11 @@ from app.models.competitor import Competitor
 from app.models.alerts import Alert
 from app.schemas.alerts import AlertOut, AlertUpdate
 from app.api.deps import get_current_active_user
+from app.core.rate_limiter import RateLimiter
 
 router = APIRouter()
 
-@router.get("/", response_model=List[AlertOut])
+@router.get("/", response_model=List[AlertOut], dependencies=[Depends(RateLimiter(limit=100, window=60, limit_by_ip=True))])
 def list_alerts(
     is_read: Optional[bool] = None,
     limit: int = 50,
@@ -36,7 +37,7 @@ def list_alerts(
     alerts = query.order_by(Alert.created_at.desc()).limit(limit).all()
     return alerts
 
-@router.put("/{alert_id}", response_model=AlertOut)
+@router.put("/{alert_id}", response_model=AlertOut, dependencies=[Depends(RateLimiter(limit=10, window=60, limit_by_ip=False))])
 def update_alert(
     alert_id: int,
     alert_in: AlertUpdate,
@@ -64,7 +65,7 @@ def update_alert(
     db.refresh(alert)
     return alert
 
-@router.post("/read-all", status_code=status.HTTP_200_OK)
+@router.post("/read-all", status_code=status.HTTP_200_OK, dependencies=[Depends(RateLimiter(limit=10, window=60, limit_by_ip=False))])
 def mark_all_as_read(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
@@ -90,7 +91,7 @@ def mark_all_as_read(
     db.commit()
     return {"message": f"Successfully marked {len(unread_alerts)} alerts as read."}
 
-@router.delete("/{alert_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{alert_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(RateLimiter(limit=10, window=60, limit_by_ip=False))])
 def delete_alert(
     alert_id: int,
     db: Session = Depends(get_db),

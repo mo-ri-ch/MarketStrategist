@@ -18,6 +18,7 @@ from app.db.session import get_db
 from app.models.user import User
 from app.models.company import Company
 from app.api.deps import get_current_active_user
+from app.core.rate_limiter import RateLimiter
 
 logger = logging.getLogger("market-strategist-chat")
 
@@ -58,7 +59,7 @@ class ChatResponse(BaseModel):
 # -------------------------------------------------------------------------
 # POST /chat/
 # -------------------------------------------------------------------------
-@router.post("/", response_model=ChatResponse)
+@router.post("/", response_model=ChatResponse, dependencies=[Depends(RateLimiter(limit=10, window=60, limit_by_ip=False))])
 def chat(
     payload: ChatRequest,
     db: Session = Depends(get_db),
@@ -133,7 +134,7 @@ def chat(
 # -------------------------------------------------------------------------
 # GET /chat/history
 # -------------------------------------------------------------------------
-@router.get("/history")
+@router.get("/history", dependencies=[Depends(RateLimiter(limit=100, window=60, limit_by_ip=True))])
 def get_chat_history(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),

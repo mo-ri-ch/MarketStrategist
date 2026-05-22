@@ -1,19 +1,22 @@
 import os
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.models.user import User
 from app.models.company import Company
-from app.api.deps import get_current_active_user
+from app.api.deps import get_current_active_user, check_role
 from app.workers.tasks.report_generator import generate_weekly_report
+from app.core.audit import log_action
+from app.core.rate_limiter import RateLimiter
 
 router = APIRouter()
 
-@router.post("/weekly/trigger")
+@router.post("/weekly/trigger", dependencies=[Depends(RateLimiter(limit=10, window=60, limit_by_ip=False))])
 def trigger_weekly_report(
+    request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(check_role(["admin", "planner"]))
 ):
     """
     Manually trigger weekly report generation.
@@ -35,6 +38,18 @@ def trigger_weekly_report(
                 detail="Report compilation failed or did not write output file."
             )
             
+        log_action(
+            db=db,
+            user_id=current_user.id,
+            action="generate_weekly_report",
+            details={
+                "company_id": company.id,
+                "company_name": company.name,
+                "filepath": filepath
+            },
+            ip_address=request.client.host if request.client else None
+        )
+        
         media_type = "application/pdf" if filepath.endswith(".pdf") else "text/html"
         return FileResponse(
             path=filepath,

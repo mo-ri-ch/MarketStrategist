@@ -21,6 +21,7 @@ class Competitor(Base, TimestampMixin):
     threads_url = Column(String, nullable=True)
     
     status = Column(String, default="active", nullable=False)  # active, archived
+    region = Column(String, default="Global", nullable=False)
 
     # Relationships
     company = relationship("Company", back_populates="competitors")

@@ -18,6 +18,7 @@ class AgentState(TypedDict):
     competitor_id: int
     company_id: int
     competitor_name: str
+    competitor_region: str
     active_platforms: List[str]
     scraped_data: Dict[str, Any]
     insights_to_save: List[Dict[str, Any]]
@@ -30,7 +31,7 @@ def detect_platforms(state: AgentState) -> Dict[str, Any]:
     try:
         competitor = db.query(Competitor).filter(Competitor.id == comp_id).first()
         if not competitor:
-            return {"active_platforms": [], "competitor_name": "", "company_id": 0}
+            return {"active_platforms": [], "competitor_name": "", "company_id": 0, "competitor_region": "Global"}
             
         platforms = []
         if competitor.linkedin_url:
@@ -55,7 +56,8 @@ def detect_platforms(state: AgentState) -> Dict[str, Any]:
         return {
             "active_platforms": platforms,
             "competitor_name": competitor.name,
-            "company_id": competitor.company_id
+            "company_id": competitor.company_id,
+            "competitor_region": competitor.region or "Global"
         }
     finally:
         db.close()
@@ -63,12 +65,13 @@ def detect_platforms(state: AgentState) -> Dict[str, Any]:
 def gather_social_data(state: AgentState) -> Dict[str, Any]:
     platforms = state["active_platforms"]
     name = state["competitor_name"]
-    logger.info(f"[Node: Gather Social] Scraping {len(platforms)} platforms for {name}")
+    region = state.get("competitor_region", "Global")
+    logger.info(f"[Node: Gather Social] Scraping {len(platforms)} platforms for {name} (Region: {region})")
     
     results = {}
     for platform in platforms:
         try:
-            data = scrape_social_metrics(name, platform)
+            data = scrape_social_metrics(name, platform, region=region)
             results[platform] = data
         except Exception as e:
             logger.error(f"Error scraping {platform} for {name}: {e}")

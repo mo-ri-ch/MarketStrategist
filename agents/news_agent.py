@@ -20,6 +20,7 @@ class AgentState(TypedDict):
     competitor_id: int
     company_id: int
     competitor_name: str
+    competitor_region: str
     news_articles: List[Dict[str, Any]]
     insights_to_save: List[Dict[str, Any]]
 
@@ -31,19 +32,21 @@ def fetch_competitor_details(state: AgentState) -> Dict[str, Any]:
     try:
         competitor = db.query(Competitor).filter(Competitor.id == comp_id).first()
         if not competitor:
-            return {"competitor_name": "", "company_id": 0}
+            return {"competitor_name": "", "company_id": 0, "competitor_region": "Global"}
         return {
             "competitor_name": competitor.name,
-            "company_id": competitor.company_id
+            "company_id": competitor.company_id,
+            "competitor_region": competitor.region or "Global"
         }
     finally:
         db.close()
 
 def gather_news(state: AgentState) -> Dict[str, Any]:
     name = state["competitor_name"]
-    logger.info(f"[Node: Gather News] Fetching news for competitor {name}")
+    region = state.get("competitor_region", "Global")
+    logger.info(f"[Node: Gather News] Fetching news for competitor {name} (Region: {region})")
     try:
-        articles = fetch_competitor_news(name)
+        articles = fetch_competitor_news(name, region=region)
         return {"news_articles": articles}
     except Exception as e:
         logger.error(f"Error in gather_news node: {e}")
@@ -81,6 +84,7 @@ def save_news_insights(state: AgentState) -> Dict[str, Any]:
     insights = state["insights_to_save"]
     comp_id = state["competitor_id"]
     company_id = state["company_id"]
+    region = state.get("competitor_region", "Global")
     
     if not insights:
         logger.info("No news insights to save.")
@@ -113,7 +117,8 @@ def save_news_insights(state: AgentState) -> Dict[str, Any]:
                     title=f"Strategic Event: {ins['title']}",
                     description=ins["description"],
                     confidence_score=0.95,
-                    severity="low"  # Default to low, let Alert Agent classify it
+                    severity="low",  # Default to low, let Alert Agent classify it
+                    region=region
                 )
                 db.add(db_event)
                 db.flush()

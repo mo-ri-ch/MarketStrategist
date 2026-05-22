@@ -8,4 +8,5 @@ from app.models.insights import Insight
 from app.models.recommendations import Recommendation
 from app.models.memory import Memory
 from app.models.prediction import CompetitorPrediction
+from app.models.audit_log import AuditLog
 

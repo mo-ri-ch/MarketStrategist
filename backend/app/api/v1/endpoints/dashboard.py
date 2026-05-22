@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import datetime, timedelta
@@ -9,11 +9,14 @@ from app.models.user import User
 from app.models.company import Company
 from app.models.competitor import Competitor
 from app.models.events import CompetitorEvent
-from app.api.deps import get_current_active_user
+from app.api.deps import get_current_active_user, check_role
+from app.core.audit import log_action
+from app.core.caching import get_cached_val, set_cached_val, invalidate_dashboard_cache
+from app.core.rate_limiter import RateLimiter
 
 router = APIRouter()
 
-@router.get("/metrics")
+@router.get("/metrics", dependencies=[Depends(RateLimiter(limit=100, window=60, limit_by_ip=True))])
 def get_dashboard_metrics(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
@@ -31,16 +34,23 @@ def get_dashboard_metrics(
             "severe_events_count": 0
         }
         
+    cache_key = f"dashboard:metrics:company_{company.id}"
+    cached_metrics = get_cached_val(cache_key)
+    if cached_metrics is not None:
+        return cached_metrics
+        
     # Get competitor IDs
     competitor_ids = [c.id for c in company.competitors]
     if not competitor_ids:
-        return {
+        metrics_data = {
             "competitor_count": 0,
             "event_count": 0,
             "activity_score": 0,
             "growth_score": 0,
             "severe_events_count": 0
         }
+        set_cached_val(cache_key, metrics_data, ttl=300)
+        return metrics_data
         
     # Competitor count
     competitor_count = len(competitor_ids)
@@ -78,15 +88,17 @@ def get_dashboard_metrics(
     )
     growth_score = min(weighted_score, 100)
     
-    return {
+    metrics_data = {
         "competitor_count": competitor_count,
         "event_count": event_count,
         "activity_score": activity_score,
         "growth_score": growth_score,
         "severe_events_count": severe_events_count
     }
+    set_cached_val(cache_key, metrics_data, ttl=300)
+    return metrics_data
 
-@router.get("/events", response_model=List[Dict[str, Any]])
+@router.get("/events", response_model=List[Dict[str, Any]], dependencies=[Depends(RateLimiter(limit=100, window=60, limit_by_ip=True))])
 def get_recent_events(
     limit: int = 10,
     db: Session = Depends(get_db),
@@ -99,8 +111,14 @@ def get_recent_events(
     if not company:
         return []
         
+    cache_key = f"dashboard:events:company_{company.id}:limit_{limit}"
+    cached_events = get_cached_val(cache_key)
+    if cached_events is not None:
+        return cached_events
+        
     competitor_ids = [c.id for c in company.competitors]
     if not competitor_ids:
+        set_cached_val(cache_key, [], ttl=300)
         return []
         
     events = db.query(
@@ -121,7 +139,7 @@ def get_recent_events(
         CompetitorEvent.created_at.desc()
     ).limit(limit).all()
     
-    return [
+    events_list = [
         {
             "id": e.id,
             "competitor_id": e.competitor_id,
@@ -131,15 +149,19 @@ def get_recent_events(
             "description": e.description,
             "severity": e.severity,
             "confidence_score": e.confidence_score,
-            "created_at": e.created_at
+            "created_at": e.created_at.isoformat() if hasattr(e.created_at, "isoformat") else e.created_at
         }
         for e in events
     ]
+    
+    set_cached_val(cache_key, events_list, ttl=300)
+    return events_list
 
-@router.post("/trigger")
+@router.post("/trigger", dependencies=[Depends(RateLimiter(limit=10, window=60, limit_by_ip=False))])
 def trigger_intelligence_run(
+    request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(check_role(["admin"]))
 ):
     """
     Trigger the complete Phase 2 intelligence pipeline: website monitoring, social, news, discovery, and recommendations.
@@ -221,6 +243,22 @@ def trigger_intelligence_run(
             "recommendations_to_save": []
         }
         run_recommendation_agent.invoke(recommendation_state)
+        
+        log_action(
+            db=db,
+            user_id=current_user.id,
+            action="trigger_swarm",
+            details={
+                "processed_competitors_count": processed_count,
+                "events_captured": total_events_found,
+                "company_id": company.id,
+                "company_name": company.name
+            },
+            ip_address=request.client.host if request.client else None
+        )
+        
+        # Invalidate dashboard caches as new events and metrics have been created
+        invalidate_dashboard_cache(company.id)
         
         return {
             "status": "success",

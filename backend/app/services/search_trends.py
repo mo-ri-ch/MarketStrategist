@@ -43,12 +43,13 @@ def get_fallback_discoveries(company_name: str, industry: str, services: str) ->
     # Pick a random subset of 1-2 competitors to simulate discovery
     return random.sample(templates, k=random.randint(1, 2))
 
-def discover_unmanaged_competitors(company_name: str, industry: str, services: str) -> List[Dict[str, Any]]:
+def discover_unmanaged_competitors(company_name: str, industry: str, services: str, region: str = None) -> List[Dict[str, Any]]:
     """
     Discovers potential competitors based on the user's company profile.
     If OPENAI_API_KEY is configured, generates realistic competitors using LLM reasoning.
     """
-    logger.info(f"Simulating competitor discovery for: {company_name} in {industry}")
+    region_str = region or "Global"
+    logger.info(f"Simulating competitor discovery for: {company_name} in {industry} (Region: {region_str})")
     
     client = get_openai_client()
     
@@ -58,11 +59,12 @@ def discover_unmanaged_competitors(company_name: str, industry: str, services: s
     prompt = f"""
     You are a premium market research and competitive intelligence discovery tool.
     Analyze the following profile of a company and find 2-3 potential competitors that offer similar products,
-    services, or target the same market. Generate realistic, fictitious (or real-world) competitors.
+    services, or target the same market in the specified region. Generate realistic, fictitious (or real-world) competitors.
     
     Company Name: {company_name}
     Industry: {industry or 'Technology'}
     Services/Offerings: {services or 'Enterprise software services'}
+    Target Operating Region: {region_str}
     
     Provide the output strictly as a valid JSON list of competitor objects. Each object must have these exact fields:
     - "name": The name of the competitor company

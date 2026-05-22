@@ -54,6 +54,10 @@ export default function DashboardLayout({
     { name: 'CEO Assistant', path: '/dashboard/assistant', icon: '💬' },
   ]
 
+  if (user && user.role === 'admin') {
+    navItems.push({ name: 'System Audit Logs', path: '/dashboard/audit', icon: '📑' })
+  }
+
   return (
     <div className="min-h-screen bg-dark-500 text-foreground flex relative overflow-hidden">
       {/* Background Glows */}

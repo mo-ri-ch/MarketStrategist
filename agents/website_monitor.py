@@ -182,6 +182,8 @@ def save_events(state: AgentState) -> Dict[str, Any]:
     db = SessionLocal()
     saved_event_ids = []
     try:
+        competitor = db.query(Competitor).filter(Competitor.id == comp_id).first()
+        region = competitor.region if competitor else "Global"
         for event in events:
             db_event = CompetitorEvent(
                 competitor_id=comp_id,
@@ -190,7 +192,8 @@ def save_events(state: AgentState) -> Dict[str, Any]:
                 description=event.get("description", "A change was discovered on the target's website."),
                 original_text_diff=event.get("original_text_diff"),
                 confidence_score=event.get("confidence_score", 1.0),
-                severity="low"  # Default to low, let Alert Agent evaluate
+                severity="low",  # Default to low, let Alert Agent evaluate
+                region=region
             )
             db.add(db_event)
             db.flush()

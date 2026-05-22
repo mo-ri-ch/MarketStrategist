@@ -8,10 +8,11 @@ from app.models.company import Company
 from app.models.insights import Insight
 from app.schemas.insights import InsightOut
 from app.api.deps import get_current_active_user
+from app.core.rate_limiter import RateLimiter
 
 router = APIRouter()
 
-@router.get("/", response_model=List[InsightOut])
+@router.get("/", response_model=List[InsightOut], dependencies=[Depends(RateLimiter(limit=100, window=60, limit_by_ip=True))])
 def get_insights(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)

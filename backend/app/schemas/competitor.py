@@ -13,6 +13,7 @@ class CompetitorBase(BaseModel):
     medium_url: Optional[str] = None
     threads_url: Optional[str] = None
     status: Optional[str] = "active"
+    region: Optional[str] = "Global"
 
 class CompetitorCreate(CompetitorBase):
     company_id: int
@@ -29,6 +30,7 @@ class CompetitorUpdate(BaseModel):
     medium_url: Optional[str] = None
     threads_url: Optional[str] = None
     status: Optional[str] = None
+    region: Optional[str] = None
 
 class CompetitorOut(CompetitorBase):
     id: int

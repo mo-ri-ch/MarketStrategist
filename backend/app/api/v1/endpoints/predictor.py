@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.models.user import User
@@ -6,12 +6,14 @@ from app.models.company import Company
 from app.models.competitor import Competitor
 from app.models.prediction import CompetitorPrediction
 from app.schemas.prediction import PredictionOut
-from app.api.deps import get_current_active_user
+from app.api.deps import get_current_active_user, check_role
 from app.services.predictor import generate_predictions
+from app.core.audit import log_action
+from app.core.rate_limiter import RateLimiter
 
 router = APIRouter()
 
-@router.get("/{competitor_id}", response_model=PredictionOut)
+@router.get("/{competitor_id}", response_model=PredictionOut, dependencies=[Depends(RateLimiter(limit=100, window=60, limit_by_ip=True))])
 def get_prediction(
     competitor_id: int,
     db: Session = Depends(get_db),
@@ -57,11 +59,12 @@ def get_prediction(
             
     return prediction
 
-@router.post("/{competitor_id}/refresh", response_model=PredictionOut)
+@router.post("/{competitor_id}/refresh", response_model=PredictionOut, dependencies=[Depends(RateLimiter(limit=10, window=60, limit_by_ip=False))])
 def refresh_prediction(
     competitor_id: int,
+    request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(check_role(["admin", "planner"]))
 ):
     """
     Recalculates the prediction model for a competitor and returns it.
@@ -89,6 +92,18 @@ def refresh_prediction(
         prediction = db.query(CompetitorPrediction).filter(
             CompetitorPrediction.competitor_id == competitor_id
         ).first()
+        
+        log_action(
+            db=db,
+            user_id=current_user.id,
+            action="refresh_predictions",
+            details={
+                "competitor_id": competitor_id,
+                "competitor_name": competitor.name,
+                "prediction_id": prediction.id if prediction else None
+            },
+            ip_address=request.client.host if request.client else None
+        )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

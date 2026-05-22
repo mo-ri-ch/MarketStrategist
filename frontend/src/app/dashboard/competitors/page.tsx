@@ -29,6 +29,7 @@ export default function CompetitorsPage() {
   const [competitors, setCompetitors] = useState<Competitor[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [userRole, setUserRole] = useState<string>('viewer')
 
   // Add Competitor modal state
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -43,6 +44,17 @@ export default function CompetitorsPage() {
 
   useEffect(() => {
     fetchCompanyAndCompetitors()
+    const storedUser = localStorage.getItem('user')
+    if (storedUser) {
+      try {
+        const u = JSON.parse(storedUser)
+        if (u && u.role) {
+          setUserRole(u.role)
+        }
+      } catch (e) {
+        console.error(e)
+      }
+    }
   }, [])
 
   const fetchCompanyAndCompetitors = async () => {
@@ -185,13 +197,15 @@ export default function CompetitorsPage() {
             Specify the company URLs and social handles you want the scraper and monitoring agents to track.
           </p>
         </div>
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="premium-btn px-5 py-3 rounded-xl font-semibold text-white text-sm flex items-center gap-2"
-        >
-          <span>➕</span>
-          <span>Add Competitor</span>
-        </button>
+        {userRole !== 'viewer' && (
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="premium-btn px-5 py-3 rounded-xl font-semibold text-white text-sm flex items-center gap-2"
+          >
+            <span>➕</span>
+            <span>Add Competitor</span>
+          </button>
+        )}
       </div>
 
       {competitors.length === 0 ? (
@@ -201,24 +215,28 @@ export default function CompetitorsPage() {
           <p className="text-sm text-gray-400 max-w-sm mx-auto mb-6">
             Add your primary competitors to begin mapping strategic updates, news spikes, and social analytics.
           </p>
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="premium-btn px-5 py-2.5 rounded-xl font-semibold text-white text-xs"
-          >
-            Add First Target
-          </button>
+          {userRole !== 'viewer' && (
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="premium-btn px-5 py-2.5 rounded-xl font-semibold text-white text-xs"
+            >
+              Add First Target
+            </button>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {competitors.map((comp) => (
             <div key={comp.id} className="glass-card p-6 rounded-2xl border border-white/5 flex flex-col justify-between gap-6 relative group">
-              <button
-                onClick={() => handleDeleteCompetitor(comp.id)}
-                className="absolute top-4 right-4 text-gray-500 hover:text-red-400 text-sm opacity-0 group-hover:opacity-100 transition-opacity"
-                title="Remove Competitor"
-              >
-                🗑️
-              </button>
+              {userRole !== 'viewer' && (
+                <button
+                  onClick={() => handleDeleteCompetitor(comp.id)}
+                  className="absolute top-4 right-4 text-gray-500 hover:text-red-400 text-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                  title="Remove Competitor"
+                >
+                  🗑️
+                </button>
+              )}
 
               <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-3">
@@ -239,7 +257,7 @@ export default function CompetitorsPage() {
                 </div>
               </div>
 
-              <CompetitorPredictionPanel competitorId={comp.id} />
+              <CompetitorPredictionPanel competitorId={comp.id} userRole={userRole} />
 
               {/* Connected channels summary */}
               <div className="border-t border-white/5 pt-4 flex items-center justify-between">
@@ -406,7 +424,7 @@ interface Prediction {
   updated_at: string
 }
 
-function CompetitorPredictionPanel({ competitorId }: { competitorId: number }) {
+function CompetitorPredictionPanel({ competitorId, userRole }: { competitorId: number, userRole: string }) {
   const [prediction, setPrediction] = useState<Prediction | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -517,7 +535,7 @@ function CompetitorPredictionPanel({ competitorId }: { competitorId: number }) {
                       <div key={evt.id} className="p-2 rounded bg-white/5 border border-white/5 flex items-start gap-1.5">
                         <span className="text-brand-400 mt-0.5">▪</span>
                         <div>
-                          <p className="text-white font-semibold text-[10.5px] leading-tight">{evt.title}</p>
+                           <p className="text-white font-semibold text-[10.5px] leading-tight">{evt.title}</p>
                           <p className="text-[9px] text-gray-500 uppercase">{evt.event_type}</p>
                         </div>
                       </div>
@@ -532,8 +550,9 @@ function CompetitorPredictionPanel({ competitorId }: { competitorId: number }) {
                 </span>
                 <button
                   onClick={handleRefresh}
-                  disabled={loading}
-                  className="px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-white font-semibold text-[9px] transition-all flex items-center gap-1"
+                  disabled={loading || userRole === 'viewer'}
+                  className="px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-white font-semibold text-[9px] transition-all flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                  title={userRole === 'viewer' ? 'Insufficient permissions (Planner/Admin only)' : 'Recalculate predictions'}
                 >
                   {loading ? 'Refreshing...' : '🔄 Recalculate'}
                 </button>

@@ -8,10 +8,11 @@ from app.models.company import Company
 from app.models.recommendations import Recommendation
 from app.schemas.recommendations import RecommendationOut, RecommendationUpdate
 from app.api.deps import get_current_active_user
+from app.core.rate_limiter import RateLimiter
 
 router = APIRouter()
 
-@router.get("/", response_model=List[RecommendationOut])
+@router.get("/", response_model=List[RecommendationOut], dependencies=[Depends(RateLimiter(limit=100, window=60, limit_by_ip=True))])
 def get_recommendations(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
@@ -27,7 +28,7 @@ def get_recommendations(
         Recommendation.company_id == company.id
     ).order_by(Recommendation.created_at.desc()).all()
 
-@router.put("/{recommendation_id}", response_model=RecommendationOut)
+@router.put("/{recommendation_id}", response_model=RecommendationOut, dependencies=[Depends(RateLimiter(limit=10, window=60, limit_by_ip=False))])
 def update_recommendation(
     recommendation_id: int,
     payload: RecommendationUpdate,

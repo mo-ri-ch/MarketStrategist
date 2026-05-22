@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: market-strategist-config
+  labels:
+    app: market-strategist
+data:
+  ENVIRONMENT: "production"
+  DATABASE_URL: "postgresql://postgres:postgrespassword@postgres-service:5432/competitor_intelligence"
+  REDIS_URL: "redis://redis-service:6379/0"
+  QDRANT_URL: "http://qdrant-service:6333"
+  NEXT_PUBLIC_API_URL: "http://api.marketstrategist.local"
