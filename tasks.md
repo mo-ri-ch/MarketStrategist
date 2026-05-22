@@ -166,7 +166,7 @@ This document contains the complete, atomic-level, phased implementation plan fo
   - **Components**: `backend/app/db/qdrant.py`, `backend/app/services/embeddings.py`.
   - **Dependencies**: `TSK-002`.
 
-- [ ] **TSK-302: Knowledge Base Document Ingestion Pipeline**
+- [x] **TSK-302: Knowledge Base Document Ingestion Pipeline**
   - **Description**: Construct automated pipelines indexing competitor website changes, news summaries, and social highlights into Qdrant collections.
   - **Components**: `backend/app/workers/tasks/indexer.py`.
   - **Dependencies**: `TSK-301`, `TSK-202`, `TSK-203`.
